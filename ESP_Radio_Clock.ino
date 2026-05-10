@@ -1,8 +1,16 @@
 #include "WifiManagerWrapper.h"
 #include "NTPServer.h"
+#include "TM1637Wrapper.h"
+#include <time.h>
+#include "CSE_MillisTimer.h"
+
 
 WifiManagerWrapper WifiWrapper;
 NtpServer timeServer;
+TM1637Wrapper Tm1637;
+CSE_MillisTimer secondTimer(1000);  // Create a timer with a time period of 500 ms.
+
+tm current_time;  // Structure to hold the current time.
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -10,18 +18,24 @@ void setup() {
   Serial.begin(115200);
   WifiWrapper.setup_wifi();
   timeServer.config_ntp();
-
+  Tm1637.config_tm1637();
 
   pinMode(LED_BUILTIN, OUTPUT);
+
+  current_time = timeServer.get_time();
+  Tm1637.set_time(current_time.tm_hour, current_time.tm_min, current_time.tm_sec);
+  secondTimer.start(true);  // Start the timer and set the start state to true.
 }
 
 // the loop function runs over and over again forever
 void loop() {
-  digitalWrite(LED_BUILTIN, HIGH);  // change state of the LED by setting the pin to the HIGH voltage level
-  Serial.println("LED is on");
-  delay(1000);                     // wait for a second
-  digitalWrite(LED_BUILTIN, LOW);  // change state of the LED by setting the pin to the LOW voltage level
-  Serial.println("LED is off");
-  delay(1000);  // wait for a second
-  timeServer.get_time();
+  if (secondTimer.isElapsed()) {
+    secondTimer.start();
+    Tm1637.set_time(current_time.tm_hour, current_time.tm_min, current_time.tm_sec);
+
+    // Add one second
+    time_t rawTime = mktime(&current_time);
+    rawTime++;
+    localtime_r(&rawTime, &current_time);
+  }
 }
