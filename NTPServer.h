@@ -1,10 +1,11 @@
-#ifndef WNTP_SERVER_H
-#define WNTP_SERVER_H
+#ifndef NTP_SERVER_H
+#define NTP_SERVER_H
+#include <time.h>
 
 class NtpServer {
 public:
-    void config_ntp();
-    void get_time();
+    void setup();
+    tm get_time();
 };
 
 #endif
