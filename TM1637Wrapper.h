@@ -4,7 +4,7 @@
 
 class TM1637Wrapper {
 public:
-    void config_tm1637();
+    void setup();
     void set_time(uint8_t hour, uint8_t minutes, uint8_t seconds);
 };
 

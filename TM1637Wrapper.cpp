@@ -7,7 +7,7 @@
 
 TM1637Display display(CLK, DIO);  //set up the 4-Digit Display.
 
-void TM1637Wrapper::config_tm1637() {
+void TM1637Wrapper::setup() {
   display.setBrightness(0x0a);  //set the diplay to maximum brightness
 }
 

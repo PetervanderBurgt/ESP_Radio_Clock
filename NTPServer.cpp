@@ -12,15 +12,18 @@ tm time_var;  // the structure time_var holds time information in a more conveni
 
 uint8_t max_time_sync_seconds = 120;
 
-void NtpServer::config_ntp() {
+void NtpServer::setup() {
   configTime(MY_TZ, MY_NTP_SERVER);  // --> Here is the IMPORTANT ONE LINER needed in your sketch!
 
   // Wait for the time sync for a max of 100 seconds
   time_var = get_time();
   while (mktime(&time_var) < (max_time_sync_seconds * 1000)) {
-    delay(100);
+    delay(50);
     time_var = get_time();
     Serial.println("Waiting for NTP sync...");
+    if(mktime(&time_var) < (max_time_sync_seconds-5 * 1000)){
+      ESP.restart();  // Power cycle ESP if no time is found.
+    }
   }
 }
 

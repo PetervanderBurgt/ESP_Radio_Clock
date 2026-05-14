@@ -4,7 +4,7 @@
 
 class NtpServer {
 public:
-    void config_ntp();
+    void setup();
     tm get_time();
 };
 
