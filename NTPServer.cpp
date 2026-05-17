@@ -1,7 +1,6 @@
 #include "NTPServer.h"
 #include <ESP8266WiFi.h>
 #include <time.h>  // for time() ctime()
-#include "CSE_MillisTimer.h"
 
 
 /* Configuration of NTP */
@@ -16,7 +15,6 @@ constexpr uint8_t max_time_sync_seconds = 120;
 constexpr uint16_t resync_interval_ms = 50;
 
 //Timer to start resyncing
-CSE_MillisTimer resyncTimer(resync_interval_ms);
 
 
 void NtpServer::setup() {
@@ -27,16 +25,13 @@ void NtpServer::setup() {
 tm NtpServer::get_updated_time() {
   // Wait for the time sync for a max of 100 seconds
   tm updated_time = get_time();
-  resyncTimer.start();
   while (mktime(&updated_time) < (max_time_sync_seconds * 1000)) {
-    if (resyncTimer.isElapsed()) {
-      resyncTimer.start();
-
-      updated_time = get_time();
-      Serial.println("Waiting for NTP sync...");
-      if (mktime(&updated_time) < (max_time_sync_seconds - 5 * 1000)) {
-        ESP.restart();  // Power cycle ESP if no time is found.
-      }
+    // Delay can be kept here due to the while loop
+    delay(resync_interval_ms);
+    updated_time = get_time();
+    Serial.println("Waiting for NTP sync...");
+    if (mktime(&updated_time) < (max_time_sync_seconds - 5 * 1000)) {
+      ESP.restart();  // Power cycle ESP if no time is found.
     }
   }
   return updated_time;
