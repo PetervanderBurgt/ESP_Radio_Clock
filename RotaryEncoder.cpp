@@ -24,52 +24,147 @@
    * Using acceleration, faster you turn, faster will the value raise.
    * For fine tuning slow down.
    */
-//rotaryEncoder.disableAcceleration(); //acceleration is now enabled by default - disable if you dont need it
+//aiRotaryEncoder.disableAcceleration(); //acceleration is now enabled by default - disable if you dont need it
 //or set the value - larger number = more accelearation; 0 or 1 means disabled acceleration
 #define ROTARY_ENCODER_ACCELERATION 0
 
 
 #define SINGLE_BUTTON_CLICK_MS 250
-#define LONG_BUTTON_CLICK_MS 500
+// Quite long to ensure not accidentally accessing Config
+#define LONG_BUTTON_CLICK_MS 2000
 
+extern GlobalStates global_state;
 
 //instead of changing here, rather change numbers above
 // Set Button to -1 as this will be handled by OneButton
-AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN, -1, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS);
-OneButton button(ROTARY_ENCODER_BUTTON_PIN, true);
+
+
+RotaryEncoder* RotaryEncoder::instance = nullptr;
+
+
+
+RotaryEncoder::RotaryEncoder()
+  : aiRotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN, -1, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS),
+    button(ROTARY_ENCODER_BUTTON_PIN, true) {
+  instance = this;
+  memset(singleClickCallbacks, 0, sizeof(singleClickCallbacks));
+  memset(doubleClickCallbacks, 0, sizeof(doubleClickCallbacks));
+  memset(longPressCallbacks, 0, sizeof(longPressCallbacks));
+  lastEncoderValue = 0;
+}
 
 void RotaryEncoder::setup() {
   //we must initialize rotary encoder
-  rotaryEncoder.begin();
-  rotaryEncoder.setup(readEncoderISR);
-  rotaryEncoder.setBoundaries(MIN_ENCODER_VALUE, MAX_ENCODER_VALUE, LOOP_BACK_VALUE);  //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  aiRotaryEncoder.begin();
+  aiRotaryEncoder.setup(readEncoderISR);
+  aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE, MAX_ENCODER_VALUE, LOOP_BACK_VALUE);  //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
 
-  rotaryEncoder.setAcceleration(ROTARY_ENCODER_ACCELERATION);
+  aiRotaryEncoder.setAcceleration(ROTARY_ENCODER_ACCELERATION);
 
   button.setClickMs(SINGLE_BUTTON_CLICK_MS);
   button.setPressMs(LONG_BUTTON_CLICK_MS);
-  button.attachClick([]() {
-    Serial.println("Single Click");
-  });
 
-  button.attachDoubleClick([]() {
-    Serial.println("Double Click");
-  });
-
-  button.attachLongPressStart([]() {
-    Serial.println("Long Press");
-  });
+  button.attachClick(onClick);
+  button.attachDoubleClick(onDoubleClick);
+  button.attachLongPressStart(onLongPressStart);
 }
 
 void RotaryEncoder::rotary_loop() {
-  //dont print anything unless value changed
-  if (rotaryEncoder.encoderChanged()) {
-    Serial.print("Value: ");
-    Serial.println(rotaryEncoder.readEncoder());
-  }
   button.tick();
+
+  if (aiRotaryEncoder.encoderChanged()) {
+
+    int current = aiRotaryEncoder.readEncoder();
+    int delta = current - lastEncoderValue;
+
+    lastEncoderValue = current;
+
+    Serial.print("Value: ");
+    Serial.print(current);
+
+    if (delta > 0) {
+      Serial.println(" (UP)");
+    } else if (delta < 0) {
+      Serial.println(" (DOWN)");
+    }
+    if (encoderChangedCallbacks[global_state]) {
+      encoderChangedCallbacks[global_state](delta);
+    }
+  }
 }
 
 void IRAM_ATTR RotaryEncoder::readEncoderISR() {
-  rotaryEncoder.readEncoder_ISR();
+  if (instance) {
+    instance->aiRotaryEncoder.readEncoder_ISR();
+  }
+}
+
+void RotaryEncoder::onClick() {
+  buttonEvent(CLICK);
+}
+
+void RotaryEncoder::onDoubleClick() {
+  buttonEvent(DOUBLE_CLICK);
+}
+
+void RotaryEncoder::onLongPressStart() {
+  buttonEvent(LONG_PRESS);
+}
+
+void RotaryEncoder::buttonEvent(ButtonEvent event) {
+  if (instance) {
+    instance->handleButtonEvent(event);
+  }
+}
+
+void RotaryEncoder::handleButtonEvent(ButtonEvent event) {
+
+  Serial.print("Button event: ");
+  Serial.println(event);
+
+  switch (event) {
+
+    case CLICK:
+      if (singleClickCallbacks[global_state]) {
+        singleClickCallbacks[global_state]();
+      }
+      break;
+
+    case DOUBLE_CLICK:
+      if (doubleClickCallbacks[global_state]) {
+        doubleClickCallbacks[global_state]();
+      }
+      break;
+
+    case LONG_PRESS:
+      if (longPressCallbacks[global_state]) {
+        longPressCallbacks[global_state]();
+      }
+      break;
+  }
+}
+
+void RotaryEncoder::registerEncoderChangedCallback(GlobalStates state, EncoderCallback cb) {
+  encoderChangedCallbacks[state] = cb;
+}
+void RotaryEncoder::unregisterEncoderChangedCallback(GlobalStates state) {
+  encoderChangedCallbacks[state] = nullptr;
+}
+void RotaryEncoder::registerSingleClickCallback(GlobalStates state, CallbackFunction cb) {
+  singleClickCallbacks[state] = cb;
+}
+void RotaryEncoder::unregisterSingleClickCallback(GlobalStates state) {
+  singleClickCallbacks[state] = nullptr;
+}
+void RotaryEncoder::registerDoubleClickCallback(GlobalStates state, CallbackFunction cb) {
+  doubleClickCallbacks[state] = cb;
+}
+void RotaryEncoder::unregisterDoubleClickCallback(GlobalStates state) {
+  doubleClickCallbacks[state] = nullptr;
+}
+void RotaryEncoder::registerLongPressCallback(GlobalStates state, CallbackFunction cb) {
+  longPressCallbacks[state] = cb;
+}
+void RotaryEncoder::unregisterLongPressCallback(GlobalStates state) {
+  longPressCallbacks[state] = nullptr;
 }

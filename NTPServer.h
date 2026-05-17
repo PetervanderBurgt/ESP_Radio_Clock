@@ -5,6 +5,8 @@
 class NtpServer {
 public:
     void setup();
+    tm get_updated_time();
+private:
     tm get_time();
 };
 

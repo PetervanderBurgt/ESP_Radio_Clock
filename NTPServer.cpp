@@ -1,6 +1,8 @@
 #include "NTPServer.h"
 #include <ESP8266WiFi.h>
 #include <time.h>  // for time() ctime()
+#include "CSE_MillisTimer.h"
+
 
 /* Configuration of NTP */
 #define MY_NTP_SERVER "at.pool.ntp.org"
@@ -10,21 +12,34 @@
 time_t now;   // this are the seconds since Epoch (1970) - UTC
 tm time_var;  // the structure time_var holds time information in a more convenient way
 
-uint8_t max_time_sync_seconds = 120;
+constexpr uint8_t max_time_sync_seconds = 120;
+constexpr uint16_t resync_interval_ms = 50;
+
+//Timer to start resyncing
+CSE_MillisTimer resyncTimer(resync_interval_ms);
+
 
 void NtpServer::setup() {
   configTime(MY_TZ, MY_NTP_SERVER);  // --> Here is the IMPORTANT ONE LINER needed in your sketch!
+  get_updated_time();
+}
 
+tm NtpServer::get_updated_time() {
   // Wait for the time sync for a max of 100 seconds
-  time_var = get_time();
-  while (mktime(&time_var) < (max_time_sync_seconds * 1000)) {
-    delay(50);
-    time_var = get_time();
-    Serial.println("Waiting for NTP sync...");
-    if(mktime(&time_var) < (max_time_sync_seconds-5 * 1000)){
-      ESP.restart();  // Power cycle ESP if no time is found.
+  tm updated_time = get_time();
+  resyncTimer.start();
+  while (mktime(&updated_time) < (max_time_sync_seconds * 1000)) {
+    if (resyncTimer.isElapsed()) {
+      resyncTimer.start();
+
+      updated_time = get_time();
+      Serial.println("Waiting for NTP sync...");
+      if (mktime(&updated_time) < (max_time_sync_seconds - 5 * 1000)) {
+        ESP.restart();  // Power cycle ESP if no time is found.
+      }
     }
   }
+  return updated_time;
 }
 
 tm NtpServer::get_time() {
