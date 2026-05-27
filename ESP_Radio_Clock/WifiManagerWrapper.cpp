@@ -2,7 +2,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>  // https://github.com/tzapu/WiFiManager
 
-void WifiManagerWrapper::setup_wifi() {
+void WifiManagerWrapper::setup() {
     WiFiManager wm;
 
     // Optional: reset settings (for testing)

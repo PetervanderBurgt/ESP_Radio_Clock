@@ -42,7 +42,7 @@ tm NtpServer::get_time() {
   localtime_r(&now, &time_var);  // update the structure time_var with the current time
   Serial.print("year:");
   Serial.print(time_var.tm_year + 1900);  // years since 1900
-  Serial.print("\timeonth:");
+  Serial.print("\tmonth:");
   Serial.print(time_var.tm_mon + 1);  // January = 0 (!)
   Serial.print("\tday:");
   Serial.print(time_var.tm_mday);  // day of month

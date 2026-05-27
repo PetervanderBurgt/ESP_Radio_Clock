@@ -5,6 +5,7 @@
 #include "CSE_MillisTimer.h"
 #include "LedStrip.h"
 #include "RotaryEncoder.h"
+#include "DfplayerMiniWrapper.h"
 #include "GlobalVariables.h"
 
 
@@ -14,6 +15,7 @@ TM1637Wrapper ClockDisplay;
 CSE_MillisTimer secondTimer(1000);  // Create a timer with a time period of 1000 ms.
 LedStrip AlarmLeds;
 RotaryEncoder Encoder;
+DfPlayerMiniWrapper Dfplayer;
 
 
 constexpr uint32_t time_to_resync = 030000;  // Formatted in HHmmss
@@ -28,11 +30,12 @@ void setup() {
   // initialize digital pin LED_BUILTIN as an output.
   Serial.begin(115200);
   Serial.println("Beginning Clock");
-  WifiWrapper.setup_wifi();
+  WifiWrapper.setup();
   timeServer.setup();
   ClockDisplay.setup();
   AlarmLeds.setup();
   Encoder.setup();
+  Dfplayer.setup();
 
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -59,4 +62,5 @@ void loop() {
   }
   AlarmLeds.write();
   Encoder.rotary_loop();
+  Dfplayer.loop();
 }
