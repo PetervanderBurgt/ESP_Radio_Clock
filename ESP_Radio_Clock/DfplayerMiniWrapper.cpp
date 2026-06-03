@@ -79,11 +79,13 @@ void DfPlayerMiniWrapper::setup() {
   Serial.print("files ");
   Serial.println(count);
 
-  Serial.println("starting...");
+  Serial.print("starting track: ");
 
   // start the first track playing
   uint16_t rand = random(1, count + 1);
-  dfmp3.loopGlobalTrack(rand);  // sd:/mp3/0001.mp3
+  Serial.println(rand);
+  dfmp3.stop();
+  // dfmp3.loopGlobalTrack(rand);  // sd:/mp3/0001.mp3
 }
 
 void DfPlayerMiniWrapper::loop() {

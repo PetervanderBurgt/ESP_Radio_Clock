@@ -21,9 +21,7 @@ DfPlayerMiniWrapper Dfplayer;
 constexpr uint32_t time_to_resync = 030000;  // Formatted in HHmmss
 
 tm current_time;  // Structure to hold the current time.
-
-
-GlobalStates global_state = clock_on;
+tm config_time = {0};  // Structure to hold the current time.
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -52,14 +50,14 @@ void loop() {
 
   if (secondTimer.isElapsed()) {
     secondTimer.start();
-    ClockDisplay.set_time(current_time.tm_hour, current_time.tm_min, current_time.tm_sec);
-
     // Add one second
     time_t rawTime = mktime(&current_time);
     rawTime++;
     localtime_r(&rawTime, &current_time);
     Serial.println(current_time.tm_hour * 10000 + current_time.tm_min * 100 + current_time.tm_sec * 1);
   }
+
+  ClockDisplay.loop(current_time, config_time);
   AlarmLeds.write();
   Encoder.rotary_loop();
   Dfplayer.loop();
