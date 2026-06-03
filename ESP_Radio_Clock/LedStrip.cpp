@@ -1,7 +1,7 @@
 #include "LedStrip.h"
 #include <FastLED.h>
 
-#define DATA_PIN 4
+#define DATA_PIN 15
 #define NUM_LEDS 8
 CRGB leds[NUM_LEDS];
 

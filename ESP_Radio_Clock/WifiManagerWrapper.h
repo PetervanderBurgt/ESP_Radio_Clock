@@ -3,7 +3,7 @@
 
 class WifiManagerWrapper {
 public:
-    void setup_wifi();
+    void setup();
 };
 
 #endif
