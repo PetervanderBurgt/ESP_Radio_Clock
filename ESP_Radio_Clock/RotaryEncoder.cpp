@@ -1,6 +1,7 @@
 #include "RotaryEncoder.h"
 #include "AiEsp32RotaryEncoder.h"
 #include <OneButton.h>
+#include <time.h>
 
 #define ROTARY_ENCODER_A_PIN D6
 #define ROTARY_ENCODER_B_PIN D5
@@ -14,8 +15,12 @@
 #define ROTARY_ENCODER_STEPS 4
 
 //set boundaries and if values should cycle or not
-#define MIN_ENCODER_VALUE 0
-#define MAX_ENCODER_VALUE 60
+#define MIN_ENCODER_VALUE_MINUTE 0
+#define MAX_ENCODER_VALUE_MINUTE 59
+#define MIN_ENCODER_VALUE_HOUR 0
+#define MAX_ENCODER_VALUE_HOUR 23
+#define MIN_ENCODER_VALUE_OFF 0
+#define MAX_ENCODER_VALUE_ON 1
 #define LOOP_BACK_VALUE true
 
 /*Rotary acceleration introduced 25.2.2021.
@@ -34,12 +39,14 @@
 #define LONG_BUTTON_CLICK_MS 2000
 
 GlobalStates global_state = clock_on;
+ConfigStates config_state = config_alarm_monday_hour;
 
+tm config_time = { 0 };  // Structure to hold the config time.
 
 RotaryEncoder* RotaryEncoder::instance = nullptr;
 
 RotaryEncoder::RotaryEncoder()
-  : aiRotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN, -1, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS),
+  : aiRotaryEncoder(ROTARY_ENCODER_B_PIN, ROTARY_ENCODER_A_PIN, -1, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS),
     button(ROTARY_ENCODER_BUTTON_PIN, true) {
   instance = this;
   lastEncoderValue = 0;
@@ -49,7 +56,7 @@ void RotaryEncoder::setup() {
   //we must initialize rotary encoder
   aiRotaryEncoder.begin();
   aiRotaryEncoder.setup(readEncoderISR);
-  aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE, MAX_ENCODER_VALUE, LOOP_BACK_VALUE);  //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_HOUR, MAX_ENCODER_VALUE_HOUR, LOOP_BACK_VALUE);  //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
 
   aiRotaryEncoder.setAcceleration(ROTARY_ENCODER_ACCELERATION);
 
@@ -85,6 +92,15 @@ void RotaryEncoder::onEncoderChanged(int value, int delta) {
   Serial.print("Value: ");
   Serial.print(value);
 
+  if (config_state % 3 == 0) {
+    config_time.tm_hour = value;
+  } else if (config_state % 3 == 1) {
+    config_time.tm_min = value;
+  } else if (config_state % 3 == 2) {
+    config_time.tm_sec = value;
+  }
+
+
   if (delta > 0) {
     Serial.println(" (UP)");
   } else if (delta < 0) {
@@ -94,10 +110,39 @@ void RotaryEncoder::onEncoderChanged(int value, int delta) {
 
 void RotaryEncoder::onClick() {
   Serial.println("Button event: Single Click");
+  switch (global_state) {
+    case clock_config:
+      config_state = static_cast<ConfigStates>((config_state + 1) % config_alarm_count);
+      if (instance) {
+        if (config_state % 3 == 0) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_HOUR, MAX_ENCODER_VALUE_HOUR, LOOP_BACK_VALUE);
+        } else if (config_state % 3 == 1) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_MINUTE, MAX_ENCODER_VALUE_MINUTE, LOOP_BACK_VALUE);
+        }else if (config_state % 3 == 2) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_OFF, MAX_ENCODER_VALUE_ON, LOOP_BACK_VALUE);
+        }
+      }
+      break;
+    case clock_on:
+      break;
+    default:
+      break;
+  }
+
+  Serial.print("New Config State is: ");
+  Serial.println(config_state);
 }
 
 void RotaryEncoder::onDoubleClick() {
   Serial.println("Button event: Double Click");
+  switch (global_state) {
+    case clock_config:
+      break;
+    case clock_on:
+      break;
+    default:
+      break;
+  }
 }
 
 void RotaryEncoder::onLongPressStart() {
@@ -108,6 +153,7 @@ void RotaryEncoder::onLongPressStart() {
       break;
     case clock_on:
       global_state = clock_config;
+      config_state = config_alarm_monday_hour;
       break;
     default:
       global_state = clock_on;

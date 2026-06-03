@@ -21,7 +21,10 @@ DfPlayerMiniWrapper Dfplayer;
 constexpr uint32_t time_to_resync = 030000;  // Formatted in HHmmss
 
 tm current_time;  // Structure to hold the current time.
-tm config_time = {0};  // Structure to hold the current time.
+extern tm config_time;
+
+constexpr uint32_t alarm_times[7] = {0};  // Formatted in HHmmss
+
 
 // the setup function runs once when you press reset or power the board
 void setup() {
