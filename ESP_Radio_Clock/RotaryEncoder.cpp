@@ -21,7 +21,7 @@
 #define MAX_ENCODER_VALUE_HOUR 23
 #define MIN_ENCODER_VALUE_OFF 0
 #define MAX_ENCODER_VALUE_ON 1
-#define LOOP_BACK_VALUE true
+#define LOOP_BACK_VALUE false
 
 /*Rotary acceleration introduced 25.2.2021.
    * in case range to select is huge, for example - select a value between 0 and 1000 and we want 785
@@ -40,6 +40,7 @@
 
 GlobalStates global_state = clock_on;
 ConfigStates config_state = config_alarm_monday_hour;
+bool alarm_on[7] = { false };
 
 tm config_time = { 0 };  // Structure to hold the config time.
 
@@ -98,6 +99,8 @@ void RotaryEncoder::onEncoderChanged(int value, int delta) {
     config_time.tm_min = value;
   } else if (config_state % 3 == 2) {
     config_time.tm_sec = value;
+    int day_number = int(config_state / 3);
+    alarm_on[day_number] = bool(value);
   }
 
 
@@ -116,10 +119,16 @@ void RotaryEncoder::onClick() {
       if (instance) {
         if (config_state % 3 == 0) {
           instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_HOUR, MAX_ENCODER_VALUE_HOUR, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(0);
         } else if (config_state % 3 == 1) {
           instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_MINUTE, MAX_ENCODER_VALUE_MINUTE, LOOP_BACK_VALUE);
-        }else if (config_state % 3 == 2) {
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(0);
+        } else if (config_state % 3 == 2) {
           instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_OFF, MAX_ENCODER_VALUE_ON, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(0);
         }
       }
       break;

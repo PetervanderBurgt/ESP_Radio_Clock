@@ -4,7 +4,10 @@
 class LedStrip {
 public:
     void setup();
-    void write();
+    void loop();
+
+private:
+    void setAlarm();
 };
 
 #endif

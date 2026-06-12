@@ -61,7 +61,7 @@ void loop() {
   }
 
   ClockDisplay.loop(current_time, config_time);
-  AlarmLeds.write();
+  AlarmLeds.loop();
   Encoder.rotary_loop();
   Dfplayer.loop();
 }
