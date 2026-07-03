@@ -42,6 +42,11 @@ GlobalStates global_state = clock_on;
 ConfigStates config_state = config_alarm_monday_hour;
 bool alarm_on[7] = { false };
 
+extern CustomTime alarm_times[7];
+
+extern bool snoozeRequested;
+
+
 tm config_time = { 0 };  // Structure to hold the config time.
 
 RotaryEncoder* RotaryEncoder::instance = nullptr;
@@ -92,15 +97,20 @@ void IRAM_ATTR RotaryEncoder::readEncoderISR() {
 void RotaryEncoder::onEncoderChanged(int value, int delta) {
   Serial.print("Value: ");
   Serial.print(value);
+  int day_number = int(config_state / 3);
 
   if (config_state % 3 == 0) {
     config_time.tm_hour = value;
+    alarm_times[day_number].hours = config_time.tm_hour;
   } else if (config_state % 3 == 1) {
     config_time.tm_min = value;
+    alarm_times[day_number].minutes = config_time.tm_min;
   } else if (config_state % 3 == 2) {
     config_time.tm_sec = value;
-    int day_number = int(config_state / 3);
     alarm_on[day_number] = bool(value);
+    Serial.print(alarm_times[day_number].hours);
+    Serial.print(":");
+    Serial.println(alarm_times[day_number].minutes);
   }
 
 
@@ -133,6 +143,7 @@ void RotaryEncoder::onClick() {
       }
       break;
     case clock_on:
+      snoozeRequested = true;
       break;
     default:
       break;

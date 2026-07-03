@@ -1,8 +1,16 @@
 #ifndef GLOBAL_VARIABLES_H
 #define GLOBAL_VARIABLES_H
 
+#include <Arduino.h>
+
 typedef void (*CallbackFunction)();
 typedef void (*EncoderCallback)(int delta);
+
+struct CustomTime {
+  uint8_t hours;
+  uint8_t minutes;
+  uint8_t seconds;
+};
 
 enum GlobalStates {
   clock_on,

@@ -3,8 +3,14 @@
 
 class DfPlayerMiniWrapper {
 public:
-    void setup();
-    void loop();
+  DfPlayerMiniWrapper();
+
+  void setup();
+  void loop();
+  void playRandomAlarm();
+  void stopAlarm();
+
+  bool currentlyPlaying;
 };
 
 #endif
