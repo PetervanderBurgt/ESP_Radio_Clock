@@ -160,10 +160,12 @@ void RotaryEncoder::onClick() {
           instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_VOLUME, MAX_ENCODER_VALUE_VOLUME, LOOP_BACK_VALUE);
           //Reset to 0
           instance->aiRotaryEncoder.setEncoderValue(soundVolume);
+          Dfplayer.playRandomAlarm();
         } else if (config_state == config_alarm_clock_brightness) {
           instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_CLOCK_DISPLAY, MAX_ENCODER_VALUE_CLOCK_DISPLAY, LOOP_BACK_VALUE);
           //Reset to 0
           instance->aiRotaryEncoder.setEncoderValue(clockBrightness);
+          Dfplayer.stopAlarm();
         } else if (config_state == config_alarm_led_brightness) {
           instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_LEDS, MAX_ENCODER_VALUE_LEDS, LOOP_BACK_VALUE);
           //Reset to 0
@@ -210,6 +212,7 @@ void RotaryEncoder::onLongPressStart() {
   Serial.println("Button event: LongPress");
   switch (global_state) {
     case clock_config:
+      Dfplayer.stopAlarm();
       global_state = clock_on;
       break;
     case clock_on:
