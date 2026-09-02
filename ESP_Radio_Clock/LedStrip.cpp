@@ -10,12 +10,13 @@ CRGB leds[NUM_LEDS];
 extern GlobalStates global_state;
 extern ConfigStates config_state;
 extern bool alarm_on[7];
+extern uint8_t LedBrightness;
 
 BasicBlinker basicBlinker(500);
 
 void LedStrip::setup() {
   FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
-  FastLED.setBrightness(32);
+  FastLED.setBrightness(LedBrightness);
   basicBlinker.reset();
 }
 
@@ -47,4 +48,8 @@ void LedStrip::setAlarm() {
   for (int weekday = 0; weekday < 7; weekday++) {
     if (alarm_on[weekday]) leds[weekday] = CRGB::Red;
   }
+}
+
+void LedStrip::updateBrightness() {
+    FastLED.setBrightness(LedBrightness);
 }

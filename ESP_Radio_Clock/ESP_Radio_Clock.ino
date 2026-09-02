@@ -36,9 +36,9 @@ void setup() {
   Serial.println("Beginning Clock");
   WifiWrapper.setup();
   timeServer.setup();
+  Encoder.setup();
   ClockDisplay.setup();
   AlarmLeds.setup();
-  Encoder.setup();
   Dfplayer.setup();
 
   pinMode(LED_BUILTIN, OUTPUT);
@@ -56,6 +56,11 @@ void loop() {
 
   uint8_t weekday = current_time.tm_wday;  // 0 = Sunday ... 6 = Saturday
   uint8_t weekday_monday_first = (weekday + 6) % 7;
+  // Serial.print(alarm_times[weekday_monday_first].hours);
+  // Serial.print(":");
+  // Serial.print(alarm_times[weekday_monday_first].minutes);
+  // Serial.print(":");
+  // Serial.println(alarm_times[weekday_monday_first].seconds);
 
   if (current_time.tm_hour == alarm_times[weekday_monday_first].hours && current_time.tm_min == alarm_times[weekday_monday_first].minutes && current_time.tm_sec == alarm_times[weekday_monday_first].seconds) {
     //Turn Alarm on

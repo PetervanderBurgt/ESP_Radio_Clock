@@ -10,6 +10,9 @@ TM1637Display display(CLK, DIO);  //set up the 4-Digit Display.
 
 extern GlobalStates global_state;
 extern ConfigStates config_state;
+extern uint8_t LedBrightness;
+extern uint8_t clockBrightness;
+extern uint8_t soundVolume;
 
 const uint8_t SEG_ON[] = {
   SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  // O
@@ -26,7 +29,7 @@ const uint8_t SEG_OFF[] = {
 };
 
 void TM1637Wrapper::setup() {
-  display.setBrightness(0x0a);  //set the diplay to maximum brightness
+  display.setBrightness(clockBrightness);  //set the diplay to maximum brightness
 }
 
 void TM1637Wrapper::set_time(uint8_t hour, uint8_t minutes, uint8_t seconds) {
@@ -41,7 +44,13 @@ void TM1637Wrapper::set_time(uint8_t hour, uint8_t minutes, uint8_t seconds) {
 void TM1637Wrapper::loop(tm current_time, tm config_time) {
   switch (global_state) {
     case clock_config:
-      if (config_state % 3 == 2) {
+      if (config_state == config_alarm_sound_volume) {
+        display.showNumberDecEx(soundVolume, 0b00000000, true);
+      } else if (config_state == config_alarm_clock_brightness) {
+        display.showNumberDecEx(clockBrightness, 0b00000000, true);
+      } else if (config_state == config_alarm_led_brightness) {
+        display.showNumberDecEx(LedBrightness, 0b00000000, true);
+      } else if (config_state % 3 == 2) {
         if (config_time.tm_sec == 0) {
           // show off
           display.setSegments(SEG_OFF);  // show "OFF"
@@ -59,4 +68,10 @@ void TM1637Wrapper::loop(tm current_time, tm config_time) {
       set_time(current_time.tm_hour, current_time.tm_min, current_time.tm_sec);
       break;
   }
+}
+
+
+
+void TM1637Wrapper::updateBrightness() {
+  display.setBrightness(clockBrightness);  //set the diplay to maximum brightness
 }

@@ -2,6 +2,9 @@
 #include "AiEsp32RotaryEncoder.h"
 #include <OneButton.h>
 #include <time.h>
+#include "TM1637Wrapper.h"
+#include "LedStrip.h"
+#include "DfplayerMiniWrapper.h"
 
 #define ROTARY_ENCODER_A_PIN D6
 #define ROTARY_ENCODER_B_PIN D5
@@ -21,6 +24,14 @@
 #define MAX_ENCODER_VALUE_HOUR 23
 #define MIN_ENCODER_VALUE_OFF 0
 #define MAX_ENCODER_VALUE_ON 1
+
+#define MIN_ENCODER_VALUE_LEDS 1
+#define MAX_ENCODER_VALUE_LEDS 255
+#define MIN_ENCODER_VALUE_CLOCK_DISPLAY 0
+#define MAX_ENCODER_VALUE_CLOCK_DISPLAY 7
+#define MIN_ENCODER_VALUE_VOLUME 1
+#define MAX_ENCODER_VALUE_VOLUME 30
+
 #define LOOP_BACK_VALUE false
 
 /*Rotary acceleration introduced 25.2.2021.
@@ -42,9 +53,18 @@ GlobalStates global_state = clock_on;
 ConfigStates config_state = config_alarm_monday_hour;
 bool alarm_on[7] = { false };
 
+uint8_t LedBrightness = 3;
+uint8_t clockBrightness = 2;
+uint8_t soundVolume = 30;
+
+
 extern CustomTime alarm_times[7];
 
 extern bool snoozeRequested;
+
+extern TM1637Wrapper ClockDisplay;
+extern LedStrip AlarmLeds;
+extern DfPlayerMiniWrapper Dfplayer;
 
 
 tm config_time = { 0 };  // Structure to hold the config time.
@@ -99,7 +119,16 @@ void RotaryEncoder::onEncoderChanged(int value, int delta) {
   Serial.print(value);
   int day_number = int(config_state / 3);
 
-  if (config_state % 3 == 0) {
+  if (config_state == config_alarm_sound_volume) {
+    soundVolume = value;
+    Dfplayer.updateVolume();
+  } else if (config_state == config_alarm_clock_brightness) {
+    clockBrightness = value;
+    ClockDisplay.updateBrightness();
+  } else if (config_state == config_alarm_led_brightness) {
+    LedBrightness = value;
+    AlarmLeds.updateBrightness();
+  } else if (config_state % 3 == 0) {
     config_time.tm_hour = value;
     alarm_times[day_number].hours = config_time.tm_hour;
   } else if (config_state % 3 == 1) {
@@ -127,7 +156,19 @@ void RotaryEncoder::onClick() {
     case clock_config:
       config_state = static_cast<ConfigStates>((config_state + 1) % config_alarm_count);
       if (instance) {
-        if (config_state % 3 == 0) {
+        if (config_state == config_alarm_sound_volume) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_VOLUME, MAX_ENCODER_VALUE_VOLUME, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(soundVolume);
+        } else if (config_state == config_alarm_clock_brightness) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_CLOCK_DISPLAY, MAX_ENCODER_VALUE_CLOCK_DISPLAY, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(clockBrightness);
+        } else if (config_state == config_alarm_led_brightness) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_LEDS, MAX_ENCODER_VALUE_LEDS, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(LedBrightness);
+        } else if (config_state % 3 == 0) {
           instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_HOUR, MAX_ENCODER_VALUE_HOUR, LOOP_BACK_VALUE);
           //Reset to 0
           instance->aiRotaryEncoder.setEncoderValue(0);

@@ -39,6 +39,9 @@ enum ConfigStates {
   config_alarm_sunday_hour,
   config_alarm_sunday_minute,
   config_alarm_sunday_alarm,
+  config_alarm_sound_volume,
+  config_alarm_clock_brightness,
+  config_alarm_led_brightness,
   config_alarm_count
 };
 

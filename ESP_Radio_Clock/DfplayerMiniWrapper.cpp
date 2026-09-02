@@ -13,6 +13,8 @@ SoftwareSerial secondarySerial(5, 4);  // RX, TX
 typedef DFMiniMp3<SoftwareSerial, Mp3Notify> DfMp3;
 DfMp3 dfmp3(secondarySerial);
 
+extern uint8_t soundVolume;
+
 // implement a notification class,
 // its member methods will get called
 //
@@ -76,7 +78,7 @@ void DfPlayerMiniWrapper::setup() {
   uint16_t volume = dfmp3.getVolume();
   Serial.print("volume ");
   Serial.println(volume);
-  dfmp3.setVolume(30);
+  dfmp3.setVolume(soundVolume);
 
   uint16_t count = dfmp3.getTotalTrackCount(DfMp3_PlaySource_Sd);
   Serial.print("files ");
@@ -147,4 +149,8 @@ void DfPlayerMiniWrapper::stopAlarm() {
   }
 
   Serial.println("Failed to stop playback.");
+}
+
+void DfPlayerMiniWrapper::updateVolume() {
+  dfmp3.setVolume(soundVolume);
 }

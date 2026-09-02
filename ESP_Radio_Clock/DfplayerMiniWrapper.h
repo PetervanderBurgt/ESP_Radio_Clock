@@ -9,6 +9,8 @@ public:
   void loop();
   void playRandomAlarm();
   void stopAlarm();
+  void updateVolume();
+
 
   bool currentlyPlaying;
 };
