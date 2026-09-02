@@ -3,8 +3,13 @@
 
 class LedStrip {
 public:
-    void setup();
-    void write();
+  void setup();
+  void loop();
+  void updateBrightness();
+
+
+private:
+  void setAlarm();
 };
 
 #endif

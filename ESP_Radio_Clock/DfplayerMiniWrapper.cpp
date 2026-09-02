@@ -13,6 +13,8 @@ SoftwareSerial secondarySerial(5, 4);  // RX, TX
 typedef DFMiniMp3<SoftwareSerial, Mp3Notify> DfMp3;
 DfMp3 dfmp3(secondarySerial);
 
+extern uint8_t soundVolume;
+
 // implement a notification class,
 // its member methods will get called
 //
@@ -51,10 +53,13 @@ public:
   }
 };
 
+DfPlayerMiniWrapper::DfPlayerMiniWrapper() {
+  currentlyPlaying = false;
+}
+
+
 void DfPlayerMiniWrapper::setup() {
   Serial.println("initializing DfPlayer Mini");
-
-  randomSeed(analogRead(A0));
   secondarySerial.begin(9600);
   dfmp3.begin();
   // for boards that support hardware arbitrary pins
@@ -73,19 +78,79 @@ void DfPlayerMiniWrapper::setup() {
   uint16_t volume = dfmp3.getVolume();
   Serial.print("volume ");
   Serial.println(volume);
-  dfmp3.setVolume(30);
+  dfmp3.setVolume(soundVolume);
 
   uint16_t count = dfmp3.getTotalTrackCount(DfMp3_PlaySource_Sd);
   Serial.print("files ");
   Serial.println(count);
 
-  Serial.println("starting...");
-
-  // start the first track playing
-  uint16_t rand = random(1, count + 1);
-  dfmp3.loopGlobalTrack(rand);  // sd:/mp3/0001.mp3
+  dfmp3.stop();
 }
 
 void DfPlayerMiniWrapper::loop() {
   dfmp3.loop();
+}
+
+void DfPlayerMiniWrapper::playRandomAlarm() {
+  if (!currentlyPlaying) {
+    uint16_t count = dfmp3.getTotalTrackCount(DfMp3_PlaySource_Sd);
+    uint8_t MAX_ATTEMPTS = 10;
+    for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      uint16_t track = random(1, count + 1);
+
+      Serial.print("Trying track ");
+      Serial.println(track);
+
+      dfmp3.stop();
+      delay(100);
+
+      dfmp3.loopGlobalTrack(track);
+
+      delay(300);
+      dfmp3.loop();
+
+      DfMp3_Status status = dfmp3.getStatus();
+
+      if (status.state == DfMp3_StatusState_Playing) {
+        currentlyPlaying = true;
+        return;
+      }
+    }
+
+    Serial.println("Failed to start playback");
+    currentlyPlaying = false;
+  }
+}
+
+void DfPlayerMiniWrapper::stopAlarm() {
+  if (!currentlyPlaying) {
+    return;
+  }
+
+  const uint8_t MAX_ATTEMPTS = 10;
+
+  for (uint8_t attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    dfmp3.stop();
+
+    delay(100);
+    dfmp3.loop();
+
+    DfMp3_Status status = dfmp3.getStatus();
+
+    if (status.state != DfMp3_StatusState_Playing) {
+      currentlyPlaying = false;
+      Serial.println("Playback stopped.");
+      return;
+    }
+
+    Serial.print("Stop attempt ");
+    Serial.print(attempt + 1);
+    Serial.println(" failed.");
+  }
+
+  Serial.println("Failed to stop playback.");
+}
+
+void DfPlayerMiniWrapper::updateVolume() {
+  dfmp3.setVolume(soundVolume);
 }

@@ -15,27 +15,16 @@ public:
   static void readEncoderISR();
 
   // OneButton required wrappers
+  static void onEncoderChanged(int value, int delta);
   static void onClick();
   static void onDoubleClick();
   static void onLongPressStart();
 
-  void registerEncoderChangedCallback(GlobalStates state, EncoderCallback cb);
-  void unregisterEncoderChangedCallback(GlobalStates state);
-
-  void registerSingleClickCallback(GlobalStates state, CallbackFunction cb);
-  void unregisterSingleClickCallback(GlobalStates state);
-
-  void registerDoubleClickCallback(GlobalStates state, CallbackFunction cb);
-  void unregisterDoubleClickCallback(GlobalStates state);
-
-  void registerLongPressCallback(GlobalStates state, CallbackFunction cb);
-  void unregisterLongPressCallback(GlobalStates state);
-
 private:
-
+    static RotaryEncoder* instance;
+    
   AiEsp32RotaryEncoder aiRotaryEncoder;
   OneButton button;
-  static RotaryEncoder* instance;
 
   int lastEncoderValue;
 
@@ -48,12 +37,6 @@ private:
   static void buttonEvent(ButtonEvent event);
 
   void handleButtonEvent(ButtonEvent event);
-
-  // state callbacks
-  EncoderCallback encoderChangedCallbacks[2];
-  CallbackFunction singleClickCallbacks[2];
-  CallbackFunction doubleClickCallbacks[2];
-  CallbackFunction longPressCallbacks[2];
 };
 
 #endif

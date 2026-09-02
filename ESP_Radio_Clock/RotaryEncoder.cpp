@@ -1,6 +1,10 @@
 #include "RotaryEncoder.h"
 #include "AiEsp32RotaryEncoder.h"
 #include <OneButton.h>
+#include <time.h>
+#include "TM1637Wrapper.h"
+#include "LedStrip.h"
+#include "DfplayerMiniWrapper.h"
 
 #define ROTARY_ENCODER_A_PIN D6
 #define ROTARY_ENCODER_B_PIN D5
@@ -14,9 +18,21 @@
 #define ROTARY_ENCODER_STEPS 4
 
 //set boundaries and if values should cycle or not
-#define MIN_ENCODER_VALUE 0
-#define MAX_ENCODER_VALUE 60
-#define LOOP_BACK_VALUE true
+#define MIN_ENCODER_VALUE_MINUTE 0
+#define MAX_ENCODER_VALUE_MINUTE 59
+#define MIN_ENCODER_VALUE_HOUR 0
+#define MAX_ENCODER_VALUE_HOUR 23
+#define MIN_ENCODER_VALUE_OFF 0
+#define MAX_ENCODER_VALUE_ON 1
+
+#define MIN_ENCODER_VALUE_LEDS 1
+#define MAX_ENCODER_VALUE_LEDS 255
+#define MIN_ENCODER_VALUE_CLOCK_DISPLAY 0
+#define MAX_ENCODER_VALUE_CLOCK_DISPLAY 7
+#define MIN_ENCODER_VALUE_VOLUME 1
+#define MAX_ENCODER_VALUE_VOLUME 30
+
+#define LOOP_BACK_VALUE false
 
 /*Rotary acceleration introduced 25.2.2021.
    * in case range to select is huge, for example - select a value between 0 and 1000 and we want 785
@@ -33,23 +49,32 @@
 // Quite long to ensure not accidentally accessing Config
 #define LONG_BUTTON_CLICK_MS 2000
 
-extern GlobalStates global_state;
+GlobalStates global_state = clock_on;
+ConfigStates config_state = config_alarm_monday_hour;
+bool alarm_on[7] = { false };
 
-//instead of changing here, rather change numbers above
-// Set Button to -1 as this will be handled by OneButton
+uint8_t LedBrightness = 3;
+uint8_t clockBrightness = 2;
+uint8_t soundVolume = 30;
 
+
+extern CustomTime alarm_times[7];
+
+extern bool snoozeRequested;
+
+extern TM1637Wrapper ClockDisplay;
+extern LedStrip AlarmLeds;
+extern DfPlayerMiniWrapper Dfplayer;
+
+
+tm config_time = { 0 };  // Structure to hold the config time.
 
 RotaryEncoder* RotaryEncoder::instance = nullptr;
 
-
-
 RotaryEncoder::RotaryEncoder()
-  : aiRotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN, -1, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS),
+  : aiRotaryEncoder(ROTARY_ENCODER_B_PIN, ROTARY_ENCODER_A_PIN, -1, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS),
     button(ROTARY_ENCODER_BUTTON_PIN, true) {
   instance = this;
-  memset(singleClickCallbacks, 0, sizeof(singleClickCallbacks));
-  memset(doubleClickCallbacks, 0, sizeof(doubleClickCallbacks));
-  memset(longPressCallbacks, 0, sizeof(longPressCallbacks));
   lastEncoderValue = 0;
 }
 
@@ -57,7 +82,7 @@ void RotaryEncoder::setup() {
   //we must initialize rotary encoder
   aiRotaryEncoder.begin();
   aiRotaryEncoder.setup(readEncoderISR);
-  aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE, MAX_ENCODER_VALUE, LOOP_BACK_VALUE);  //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_HOUR, MAX_ENCODER_VALUE_HOUR, LOOP_BACK_VALUE);  //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
 
   aiRotaryEncoder.setAcceleration(ROTARY_ENCODER_ACCELERATION);
 
@@ -79,17 +104,7 @@ void RotaryEncoder::rotary_loop() {
 
     lastEncoderValue = current;
 
-    Serial.print("Value: ");
-    Serial.print(current);
-
-    if (delta > 0) {
-      Serial.println(" (UP)");
-    } else if (delta < 0) {
-      Serial.println(" (DOWN)");
-    }
-    if (encoderChangedCallbacks[global_state]) {
-      encoderChangedCallbacks[global_state](delta);
-    }
+    onEncoderChanged(current, delta);
   }
 }
 
@@ -99,72 +114,112 @@ void IRAM_ATTR RotaryEncoder::readEncoderISR() {
   }
 }
 
+void RotaryEncoder::onEncoderChanged(int value, int delta) {
+  Serial.print("Value: ");
+  Serial.print(value);
+  int day_number = int(config_state / 3);
+
+  if (config_state == config_alarm_sound_volume) {
+    soundVolume = value;
+    Dfplayer.updateVolume();
+  } else if (config_state == config_alarm_clock_brightness) {
+    clockBrightness = value;
+    ClockDisplay.updateBrightness();
+  } else if (config_state == config_alarm_led_brightness) {
+    LedBrightness = value;
+    AlarmLeds.updateBrightness();
+  } else if (config_state % 3 == 0) {
+    config_time.tm_hour = value;
+    alarm_times[day_number].hours = config_time.tm_hour;
+  } else if (config_state % 3 == 1) {
+    config_time.tm_min = value;
+    alarm_times[day_number].minutes = config_time.tm_min;
+  } else if (config_state % 3 == 2) {
+    config_time.tm_sec = value;
+    alarm_on[day_number] = bool(value);
+    Serial.print(alarm_times[day_number].hours);
+    Serial.print(":");
+    Serial.println(alarm_times[day_number].minutes);
+  }
+
+
+  if (delta > 0) {
+    Serial.println(" (UP)");
+  } else if (delta < 0) {
+    Serial.println(" (DOWN)");
+  }
+}
+
 void RotaryEncoder::onClick() {
-  buttonEvent(CLICK);
+  Serial.println("Button event: Single Click");
+  switch (global_state) {
+    case clock_config:
+      config_state = static_cast<ConfigStates>((config_state + 1) % config_alarm_count);
+      if (instance) {
+        if (config_state == config_alarm_sound_volume) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_VOLUME, MAX_ENCODER_VALUE_VOLUME, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(soundVolume);
+        } else if (config_state == config_alarm_clock_brightness) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_CLOCK_DISPLAY, MAX_ENCODER_VALUE_CLOCK_DISPLAY, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(clockBrightness);
+        } else if (config_state == config_alarm_led_brightness) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_LEDS, MAX_ENCODER_VALUE_LEDS, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(LedBrightness);
+        } else if (config_state % 3 == 0) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_HOUR, MAX_ENCODER_VALUE_HOUR, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(0);
+        } else if (config_state % 3 == 1) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_MINUTE, MAX_ENCODER_VALUE_MINUTE, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(0);
+        } else if (config_state % 3 == 2) {
+          instance->aiRotaryEncoder.setBoundaries(MIN_ENCODER_VALUE_OFF, MAX_ENCODER_VALUE_ON, LOOP_BACK_VALUE);
+          //Reset to 0
+          instance->aiRotaryEncoder.setEncoderValue(0);
+        }
+      }
+      break;
+    case clock_on:
+      snoozeRequested = true;
+      break;
+    default:
+      break;
+  }
+
+  Serial.print("New Config State is: ");
+  Serial.println(config_state);
 }
 
 void RotaryEncoder::onDoubleClick() {
-  buttonEvent(DOUBLE_CLICK);
+  Serial.println("Button event: Double Click");
+  switch (global_state) {
+    case clock_config:
+      break;
+    case clock_on:
+      break;
+    default:
+      break;
+  }
 }
 
 void RotaryEncoder::onLongPressStart() {
-  buttonEvent(LONG_PRESS);
-}
-
-void RotaryEncoder::buttonEvent(ButtonEvent event) {
-  if (instance) {
-    instance->handleButtonEvent(event);
-  }
-}
-
-void RotaryEncoder::handleButtonEvent(ButtonEvent event) {
-
-  Serial.print("Button event: ");
-  Serial.println(event);
-
-  switch (event) {
-
-    case CLICK:
-      if (singleClickCallbacks[global_state]) {
-        singleClickCallbacks[global_state]();
-      }
+  Serial.println("Button event: LongPress");
+  switch (global_state) {
+    case clock_config:
+      global_state = clock_on;
       break;
-
-    case DOUBLE_CLICK:
-      if (doubleClickCallbacks[global_state]) {
-        doubleClickCallbacks[global_state]();
-      }
+    case clock_on:
+      global_state = clock_config;
+      config_state = config_alarm_monday_hour;
       break;
-
-    case LONG_PRESS:
-      if (longPressCallbacks[global_state]) {
-        longPressCallbacks[global_state]();
-      }
+    default:
+      global_state = clock_on;
       break;
   }
-}
-
-void RotaryEncoder::registerEncoderChangedCallback(GlobalStates state, EncoderCallback cb) {
-  encoderChangedCallbacks[state] = cb;
-}
-void RotaryEncoder::unregisterEncoderChangedCallback(GlobalStates state) {
-  encoderChangedCallbacks[state] = nullptr;
-}
-void RotaryEncoder::registerSingleClickCallback(GlobalStates state, CallbackFunction cb) {
-  singleClickCallbacks[state] = cb;
-}
-void RotaryEncoder::unregisterSingleClickCallback(GlobalStates state) {
-  singleClickCallbacks[state] = nullptr;
-}
-void RotaryEncoder::registerDoubleClickCallback(GlobalStates state, CallbackFunction cb) {
-  doubleClickCallbacks[state] = cb;
-}
-void RotaryEncoder::unregisterDoubleClickCallback(GlobalStates state) {
-  doubleClickCallbacks[state] = nullptr;
-}
-void RotaryEncoder::registerLongPressCallback(GlobalStates state, CallbackFunction cb) {
-  longPressCallbacks[state] = cb;
-}
-void RotaryEncoder::unregisterLongPressCallback(GlobalStates state) {
-  longPressCallbacks[state] = nullptr;
+  Serial.print("New Global State is: ");
+  Serial.println(global_state);
 }
